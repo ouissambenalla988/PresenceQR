@@ -6,8 +6,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Link from "next/link";
+import { IconArrowRight, IconSparkles } from "@tabler/icons-react";
 import { DashboardClient } from "@/components/dashboard-client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { CourseCard } from "@/components/course-card";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { SessionCard } from "@/components/session-card";
 import { TeacherSessionActions } from "@/components/teacher-session-actions";
 import {
   getCourseCode,
@@ -17,7 +23,9 @@ import {
 import {
   getConfirmedStaff,
   mapStudentCoursesToDisplay,
+  getStaffNameByUserId,
   type StaffRow,
+  type SessionRow,
   type StudentCourseRow,
 } from "@/lib/school-data";
 import { createClient } from "@/lib/supabase/server";
@@ -75,10 +83,15 @@ export default async function DashboardPage({
       return <PendingTeacherDashboard />;
     }
 
+    const recentSessions = await getRecentTeacherSessions(supabase);
+    const teacherNames = await getTeacherNames(supabase, recentSessions);
+
     return (
       <TeacherDashboard
         staff={staff}
         courses={(courses ?? []) as CourseRow[]}
+        recentSessions={recentSessions}
+        teacherNames={teacherNames}
       />
     );
   }
@@ -88,15 +101,19 @@ export default async function DashboardPage({
     .select("*")
     .eq("email", user?.email ?? "")
     .maybeSingle<Profile>();
+  const recentSessions = await getRecentSessions(
+    supabase,
+    courseDisplays.map((course) => course.code),
+  );
+  const teacherNames = await getTeacherNames(supabase, recentSessions);
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Welcome back{profile?.name ? `, ${profile.name}` : ""}
-        </h1>
-      </div>
+      <PageHeader
+        eyebrow="Dashboard"
+        title={`Welcome back${profile?.name ? `, ${profile.name}` : ""}`}
+        description="Your courses, sessions, and SchoolApp profile in one focused workspace."
+      />
 
       {profile ? (
         <Card size="sm">
@@ -129,19 +146,90 @@ export default async function DashboardPage({
         platformError={params?.platformError}
         shouldImportCourses={Boolean(profile) && courseDisplays.length === 0}
       />
+
+      <Card size="sm">
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle>Recent sessions</CardTitle>
+              <CardDescription>
+                Latest roll call and presentation events tied to your courses.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {recentSessions.length > 0 ? (
+            recentSessions.map((session) => (
+              <SessionCard
+                key={session.id}
+                session={session}
+                teacherName={teacherNames.get(session.teacher_id) ?? "Unavailable"}
+              />
+            ))
+          ) : (
+            <EmptyState
+              title="No recent sessions"
+              description="Sessions will appear here when teachers create roll call or presentation events for your courses."
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
+}
+
+async function getRecentSessions(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  courseCodes: string[],
+) {
+  if (courseCodes.length === 0) {
+    return [];
+  }
+
+  const { data } = await supabase
+    .from("sessions")
+    .select("*")
+    .in("courses_id", courseCodes)
+    .order("date", { ascending: false })
+    .limit(3);
+
+  return (data ?? []) as SessionRow[];
+}
+
+async function getTeacherNames(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sessions: SessionRow[],
+) {
+  const teacherNames = new Map<string, string>();
+
+  for (const teacherId of [...new Set(sessions.map((session) => session.teacher_id))]) {
+    teacherNames.set(teacherId, await getStaffNameByUserId(supabase, teacherId));
+  }
+
+  return teacherNames;
+}
+
+async function getRecentTeacherSessions(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+) {
+  const { data } = await supabase
+    .from("sessions")
+    .select("*")
+    .order("date", { ascending: false })
+    .limit(3);
+
+  return (data ?? []) as SessionRow[];
 }
 
 function PendingTeacherDashboard() {
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Teacher approval pending
-        </h1>
-      </div>
+      <PageHeader
+        eyebrow="Dashboard"
+        title="Teacher approval pending"
+        description="Your account is created and waiting for staff confirmation."
+      />
 
       <Card>
         <CardHeader>
@@ -164,10 +252,14 @@ function PendingTeacherDashboard() {
 
 function TeacherDashboard({
   courses,
+  recentSessions,
   staff,
+  teacherNames,
 }: {
   courses: CourseRow[];
+  recentSessions: SessionRow[];
   staff: StaffRow;
+  teacherNames: Map<string, string>;
 }) {
   const courseOptions = courses
     .map((course) => {
@@ -178,20 +270,19 @@ function TeacherDashboard({
       };
     })
     .filter((course) => course.code);
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            Welcome, {staff.name ?? "Teacher"}
-          </h1>
-          <Badge className="mt-3" variant="secondary">Teacher</Badge>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Dashboard"
+        title={`Welcome, ${staff.name ?? "Teacher"}`}
+        description="Launch sessions, review courses, and monitor classroom activity."
+        actions={<Badge variant="secondary">Teacher</Badge>}
+      />
 
-      <Card size="sm">
+      <Card
+        size="sm"
+        className="bg-[linear-gradient(135deg,oklch(0.99_0.01_105),oklch(0.96_0.04_88))]"
+      >
         <CardHeader>
           <CardTitle>Teacher actions</CardTitle>
           <CardDescription>
@@ -199,7 +290,13 @@ function TeacherDashboard({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TeacherSessionActions courses={courseOptions} />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <TeacherSessionActions courses={courseOptions} />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <IconSparkles className="size-4" />
+              Actions create live session records.
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -214,27 +311,49 @@ function TeacherDashboard({
             </div>
             <div className="flex items-center gap-3">
               <Badge variant="secondary">{courseOptions.length} courses</Badge>
-              <Link href="/courses" className="text-sm font-medium underline-offset-4 hover:underline">
+              <Link href="/courses" className="inline-flex items-center gap-1 text-sm font-medium underline-offset-4 hover:underline">
                 View all courses
+                <IconArrowRight className="size-4" />
               </Link>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           {courseOptions.length > 0 ? (
-            courseOptions.slice(0, 5).map((course) => (
-              <Link
-                key={course.code}
-                href={`/courses/${encodeURIComponent(course.code)}`}
-                className="block rounded-md border bg-background px-3 py-2 text-sm font-medium underline-offset-4 hover:bg-muted hover:underline"
-              >
-                {getCourseLabel(course)}
-              </Link>
-            ))
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {courseOptions.slice(0, 5).map((course) => (
+                <CourseCard key={course.code} course={course} />
+              ))}
+            </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No courses found.
-            </p>
+            <EmptyState title="No courses found" description="Courses from the courses table will appear here when available." />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>Recent sessions</CardTitle>
+          <CardDescription>
+            Session activity will appear here after roll call or presentation sessions are created.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentSessions.length > 0 ? (
+            <div className="space-y-3">
+              {recentSessions.map((session) => (
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  teacherName={teacherNames.get(session.teacher_id) ?? "Unavailable"}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No recent sessions yet"
+              description="Start a roll call or presentation session to populate this activity feed."
+            />
           )}
         </CardContent>
       </Card>

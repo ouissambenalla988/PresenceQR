@@ -5,16 +5,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
 
 export default function SettingsPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">Settings</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Account settings
-        </h1>
-      </div>
+      <PageHeader
+        eyebrow="Settings"
+        title="Account settings"
+        description="Profile and preference controls will live here as the product grows."
+      />
 
       <Card>
         <CardHeader>
@@ -22,7 +22,7 @@ export default function SettingsPage() {
           <CardDescription>Profile and app preferences will live here.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed bg-muted/25 p-6 text-sm text-muted-foreground">
             Settings page coming soon.
           </p>
         </CardContent>

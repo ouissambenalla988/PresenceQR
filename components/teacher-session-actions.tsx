@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import type * as React from "react";
 import { useRouter } from "next/navigation";
+import { IconClipboardCheck, IconPresentation } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +33,7 @@ type CourseOption = {
 };
 
 type TeacherSessionActionsProps = {
+  compact?: boolean;
   courses: CourseOption[];
 };
 
@@ -41,19 +44,26 @@ const periodsBySessionType: Record<SessionType, string[]> = {
   course: ["08:30 - 10:30", "10:30 - 12:30", "14:30 - 16:30", "16:30 - 18:30"],
 };
 
-export function TeacherSessionActions({ courses }: TeacherSessionActionsProps) {
+export function TeacherSessionActions({
+  compact = false,
+  courses,
+}: TeacherSessionActionsProps) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row">
+    <div className={compact ? "grid gap-2" : "flex flex-col gap-3 sm:flex-row"}>
       <SessionSheet
         actionType="roll_call"
         buttonLabel="Start roll call"
+        compact={compact}
         courses={courses}
+        icon={<IconClipboardCheck className="size-4" />}
         title="Start roll call"
       />
       <SessionSheet
         actionType="presentation"
         buttonLabel="Start presentation session"
+        compact={compact}
         courses={courses}
+        icon={<IconPresentation className="size-4" />}
         title="Start presentation session"
       />
     </div>
@@ -63,12 +73,16 @@ export function TeacherSessionActions({ courses }: TeacherSessionActionsProps) {
 function SessionSheet({
   actionType,
   buttonLabel,
+  compact,
   courses,
+  icon,
   title,
 }: {
   actionType: ActionType;
   buttonLabel: string;
+  compact: boolean;
   courses: CourseOption[];
+  icon: React.ReactNode;
   title: string;
 }) {
   const router = useRouter();
@@ -142,7 +156,12 @@ function SessionSheet({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button type="button" variant={actionType === "roll_call" ? "default" : "outline"}>
+        <Button
+          type="button"
+          variant={actionType === "roll_call" ? "default" : "outline"}
+          className={compact ? "w-full justify-start rounded-xl tracking-normal normal-case" : "rounded-xl"}
+        >
+          {icon}
           {buttonLabel}
         </Button>
       </SheetTrigger>

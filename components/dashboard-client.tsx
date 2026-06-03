@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { IconArrowRight } from "@tabler/icons-react";
 
+import { CourseCard } from "@/components/course-card";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { getCourseLabel, type StudentCourseDisplay } from "@/lib/course-display";
+import type { StudentCourseDisplay } from "@/lib/course-display";
 
 type DashboardClientProps = {
   hasProfile: boolean;
@@ -204,7 +206,10 @@ export function DashboardClient({
           </div>
           {courses.length > 0 ? (
             <Button asChild variant="outline" size="sm">
-              <Link href="/courses">View all courses</Link>
+              <Link href="/courses">
+                View all courses
+                <IconArrowRight className="size-4" />
+              </Link>
             </Button>
           ) : null}
         </div>
@@ -222,16 +227,10 @@ export function DashboardClient({
           </div>
         ) : null}
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {courses.length > 0 ? (
             courses.slice(0, 5).map((course) => (
-              <Link
-                key={course.code}
-                href={`/courses/${encodeURIComponent(course.code)}`}
-                className="border bg-background px-3 py-1 text-sm font-medium underline-offset-4 hover:underline"
-              >
-                {getCourseLabel(course)}
-              </Link>
+              <CourseCard key={course.code} course={course} />
             ))
           ) : (
             <p className="text-sm text-muted-foreground">

@@ -1,12 +1,24 @@
 import Link from "next/link";
+import Image from "next/image";
+import { IconArrowRight } from "@tabler/icons-react";
 
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
+    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,oklch(0.97_0.04_92),transparent_35%),linear-gradient(180deg,#ffffff,#f4f3ef)] px-6 py-16">
       <section className="mx-auto flex w-full max-w-4xl flex-col gap-8">
         <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="SchoolApp+ logo"
+              width={44}
+              height={44}
+              className="rounded-2xl shadow-sm"
+            />
+            <span className="font-semibold">SchoolApp+</span>
+          </div>
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
             School management starter
           </p>
@@ -21,7 +33,10 @@ export default function Home() {
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg">
-            <Link href="/sign-in">Sign in</Link>
+            <Link href="/sign-in">
+              Sign in
+              <IconArrowRight className="size-4" />
+            </Link>
           </Button>
           <Button asChild size="lg" variant="secondary">
             <Link href="/sign-up">Create account</Link>

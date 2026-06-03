@@ -1,5 +1,5 @@
-import Link from "next/link";
-
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -60,17 +60,13 @@ export default async function SessionPage({ params }: SessionPageProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href={`/courses/${encodeURIComponent(course.code)}`}
-          className="text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          Back to course
-        </Link>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Session details
-        </h1>
-      </div>
+      <PageHeader
+        backHref={`/courses/${encodeURIComponent(course.code)}`}
+        backLabel="Back to course"
+        eyebrow="Session"
+        title="Session details"
+        description={`${course.code}${course.name ? ` - ${course.name}` : ""}`}
+      />
 
       <Card>
         <CardHeader>
@@ -85,10 +81,10 @@ export default async function SessionPage({ params }: SessionPageProps) {
             label="Period"
             value={getPeriodLabel(sessionData.isTP, Number(sessionData.period))}
           />
-          <InfoBlock label="Type" value={sessionData.isTP ? "TP" : "course"} />
+          <InfoBlock label="Type" value={sessionData.isTP ? "TP" : "Course"} />
           <InfoBlock label="Teacher" value={teacherName} />
           <InfoBlock label="Class / Section" value={sessionData.class} />
-          <div className="rounded-md border bg-background p-4">
+          <div className="rounded-2xl border bg-background p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Event
             </p>
@@ -108,20 +104,16 @@ export default async function SessionPage({ params }: SessionPageProps) {
 
 function UnavailableSession() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Session not found or unavailable.</CardTitle>
-        <CardDescription>
-          The session may not exist, or your account may not have access to it.
-        </CardDescription>
-      </CardHeader>
-    </Card>
+    <EmptyState
+      title="Session not found or unavailable."
+      description="The session may not exist, or your account may not have access to it."
+    />
   );
 }
 
 function InfoBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border bg-background p-4">
+    <div className="rounded-2xl border bg-background p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </p>

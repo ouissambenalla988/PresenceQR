@@ -1,8 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
+import { IconArrowRight } from "@tabler/icons-react";
 
+import { LoadingButton } from "@/components/loading-button";
+import { StatusAlert } from "@/components/status-alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,19 +17,26 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
+import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
+
+type AuthStatus = "idle" | "loading" | "success" | "error";
 
 export function TeacherSignUpForm() {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [isPending, setIsPending] = useState(false);
+  const [status, setStatus] = useState<AuthStatus>("idle");
+  const [stepMessage, setStepMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isLoading = status === "loading";
 
   async function handleSubmit(formData: FormData) {
-    setError(null);
-    setStatus("Creating your teacher account...");
-    setIsPending(true);
+    if (isLoading) {
+      return;
+    }
+
+    setStatus("loading");
+    setErrorMessage(null);
+    setStepMessage("Creating your teacher account...");
 
     const name = String(formData.get("name") ?? "").trim();
     const email = String(formData.get("email") ?? "").trim();
@@ -45,14 +56,14 @@ export function TeacherSignUpForm() {
     });
 
     if (signUpError) {
-      setError(signUpError.message);
-      setStatus(null);
-      setIsPending(false);
+      setStatus("error");
+      setStepMessage(null);
+      setErrorMessage(signUpError.message);
       return;
     }
 
-    setStatus("Redirecting to dashboard...");
-    setIsPending(false);
+    setStatus("success");
+    setStepMessage("Redirecting...");
     router.push("/dashboard");
     router.refresh();
   }
@@ -60,7 +71,9 @@ export function TeacherSignUpForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Teacher sign up</CardTitle>
+        <CardTitle className="text-2xl normal-case tracking-tight">
+          Teacher sign up
+        </CardTitle>
         <CardDescription>
           Create a teacher account. An admin must confirm your teacher status
           before dashboard tools are enabled.
@@ -74,7 +87,7 @@ export function TeacherSignUpForm() {
               id="teacher-name"
               name="name"
               autoComplete="name"
-              disabled={isPending}
+              disabled={isLoading}
               required
             />
           </div>
@@ -85,7 +98,7 @@ export function TeacherSignUpForm() {
               name="email"
               type="email"
               autoComplete="email"
-              disabled={isPending}
+              disabled={isLoading}
               required
             />
           </div>
@@ -97,34 +110,42 @@ export function TeacherSignUpForm() {
               type="password"
               autoComplete="new-password"
               minLength={6}
-              disabled={isPending}
+              disabled={isLoading}
               required
             />
           </div>
 
-          {error ? (
-            <div className="border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
+          {errorMessage ? (
+            <StatusAlert message={errorMessage} tone="error" />
           ) : null}
-          {status ? (
-            <div className="flex items-center gap-2 border bg-muted/40 p-3 text-sm text-muted-foreground">
-              {isPending ? <Spinner /> : null}
-              <span>{status}</span>
-            </div>
+          {stepMessage ? (
+            <StatusAlert
+              message={stepMessage}
+              tone={status === "success" ? "success" : "loading"}
+            />
           ) : null}
 
-          <Button className="w-full" type="submit" disabled={isPending}>
-            {isPending ? (
-              <>
-                <Spinner />
-                Please wait...
-              </>
-            ) : (
-              "Create teacher account"
-            )}
-          </Button>
+          <LoadingButton
+            className="w-full rounded-xl"
+            type="submit"
+            isLoading={isLoading}
+            loadingText="Creating teacher account..."
+          >
+            Create teacher account
+          </LoadingButton>
         </form>
+        <Separator className="my-6" />
+        <div className="space-y-3 text-center text-sm text-muted-foreground">
+          <p>
+            Signing up as a student?{" "}
+            <Button asChild variant="link" className="h-auto p-0 normal-case tracking-normal">
+              <Link href="/sign-up" className="inline-flex items-center gap-1">
+                Use student signup
+                <IconArrowRight className="size-3.5" />
+              </Link>
+            </Button>
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

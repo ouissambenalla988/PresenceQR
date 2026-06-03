@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { AuthShell } from "@/components/auth-shell";
 import { AuthForm } from "@/components/auth-form";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,22 +15,12 @@ export default async function SignUpPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/30 px-6 py-12">
-      <div className="flex w-full flex-col items-center gap-6">
-        <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-          SchoolApp Plus
-        </Link>
-        <AuthForm mode="sign-up" />
-        <p className="text-center text-sm text-muted-foreground">
-          Are you a teacher?{" "}
-          <Link
-            href="/sign-up/teacher"
-            className="font-medium text-foreground underline-offset-4 hover:underline"
-          >
-            Sign up as a teacher
-          </Link>
-        </p>
-      </div>
-    </main>
+    <AuthShell
+      eyebrow="Student onboarding"
+      title="Connect your school account and start organized."
+      description="Create your student workspace, verify your SchoolApp profile, and bring your courses into SchoolApp+."
+    >
+      <AuthForm mode="sign-up" />
+    </AuthShell>
   );
 }

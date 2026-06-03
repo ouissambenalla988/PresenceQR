@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { IconArrowRight } from "@tabler/icons-react";
 
+import { LoadingButton } from "@/components/loading-button";
+import { StatusAlert } from "@/components/status-alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,10 +17,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
+import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 
 type AuthMode = "sign-in" | "sign-up";
+type AuthStatus = "idle" | "loading" | "success" | "error";
 
 type AuthFormProps = {
   mode: AuthMode;
@@ -26,22 +30,25 @@ type AuthFormProps = {
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<AuthStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [stepMessage, setStepMessage] = useState<string | null>(null);
-  const [isPending, setIsPending] = useState(false);
 
   const isSignIn = mode === "sign-in";
+  const isLoading = status === "loading";
 
   async function handleSubmit(formData: FormData) {
-    setError(null);
-    setStepMessage(null);
-    setIsPending(true);
+    if (isLoading) {
+      return;
+    }
+
+    setStatus("loading");
+    setErrorMessage(null);
+    setStepMessage(isSignIn ? "Signing in..." : "Creating your account...");
 
     const email = String(formData.get("email"));
     const password = String(formData.get("password"));
     const supabase = createClient();
-
-    setStepMessage(isSignIn ? "Signing in..." : "Creating your account...");
 
     const result = isSignIn
       ? await supabase.auth.signInWithPassword({ email, password })
@@ -57,8 +64,9 @@ export function AuthForm({ mode }: AuthFormProps) {
         });
 
     if (result.error) {
-      setError(getFriendlyAuthError(result.error.message, isSignIn));
-      setIsPending(false);
+      setStatus("error");
+      setStepMessage(null);
+      setErrorMessage(getFriendlyAuthError(result.error.message, isSignIn));
       return;
     }
 
@@ -70,16 +78,17 @@ export function AuthForm({ mode }: AuthFormProps) {
       setStepMessage("Connecting to SchoolApp...");
       const connection = await connectSchoolApp(email, password);
       if (!connection.success) {
-        redirectTo = `/dashboard?uncompleted=true&platformError=${encodeURIComponent(
-          connection.message,
-        )}`;
+        setStatus("error");
+        setStepMessage(null);
+        setErrorMessage(connection.message);
+        return;
       } else {
         redirectTo = "/dashboard?uncompleted=true";
       }
     }
 
     setStepMessage("Redirecting...");
-    setIsPending(false);
+    setStatus("success");
     router.push(redirectTo);
     router.refresh();
   }
@@ -121,7 +130,9 @@ export function AuthForm({ mode }: AuthFormProps) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>{isSignIn ? "Sign in" : "Create an account"}</CardTitle>
+        <CardTitle className="text-2xl normal-case tracking-tight">
+          {isSignIn ? "Sign in to your account" : "Create your student account"}
+        </CardTitle>
         <CardDescription>
           {isSignIn
             ? "Sign in with your Supabase account to continue."
@@ -137,7 +148,7 @@ export function AuthForm({ mode }: AuthFormProps) {
               name="email"
               type="email"
               autoComplete="email"
-              disabled={isPending}
+              disabled={isLoading}
               required
             />
           </div>
@@ -149,46 +160,48 @@ export function AuthForm({ mode }: AuthFormProps) {
               type="password"
               autoComplete={isSignIn ? "current-password" : "new-password"}
               minLength={6}
-              disabled={isPending}
+              disabled={isLoading}
               required
             />
           </div>
 
-          {error ? (
-            <div className="border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
+          {errorMessage ? (
+            <StatusAlert message={errorMessage} tone="error" />
           ) : null}
           {stepMessage ? (
-            <div className="flex items-center gap-2 border bg-muted/40 p-3 text-sm text-muted-foreground">
-              {isPending ? <Spinner /> : null}
-              <span>{stepMessage}</span>
-            </div>
+            <StatusAlert
+              message={stepMessage}
+              tone={status === "success" ? "success" : "loading"}
+            />
           ) : null}
 
-          <Button className="w-full" type="submit" disabled={isPending}>
-            {isPending
-              ? (
-                  <>
-                    <Spinner />
-                    Please wait...
-                  </>
-                )
-              : isSignIn
-                ? "Sign in"
-                : "Sign up"}
-          </Button>
+          <LoadingButton
+            className="w-full rounded-xl"
+            type="submit"
+            isLoading={isLoading}
+            loadingText={isSignIn ? "Signing in..." : "Creating account..."}
+          >
+            {isSignIn ? "Sign in" : "Create account"}
+          </LoadingButton>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          {isSignIn ? "Need an account?" : "Already have an account?"}{" "}
-          <Link
-            href={isSignIn ? "/sign-up" : "/sign-in"}
-            className="font-medium text-foreground underline-offset-4 hover:underline"
-          >
-            {isSignIn ? "Sign up" : "Sign in"}
-          </Link>
-        </p>
+        <Separator className="my-6" />
+
+        <div className="space-y-3 text-center text-sm text-muted-foreground">
+          <p>
+            {isSignIn ? "Need an account?" : "Already have an account?"}{" "}
+            <Link
+              href={isSignIn ? "/sign-up" : "/sign-in"}
+              className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              {isSignIn ? "Student sign up" : "Sign in"}
+              <IconArrowRight className="size-3.5" />
+            </Link>
+          </p>
+          <Button asChild variant="ghost" size="sm" className="rounded-xl">
+            <Link href="/sign-up/teacher">Teacher sign up</Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

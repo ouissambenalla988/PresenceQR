@@ -1,6 +1,6 @@
-import Link from "next/link";
-
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { SessionCard } from "@/components/session-card";
 import {
   Card,
   CardContent,
@@ -11,8 +11,6 @@ import {
 import { getCourseLabel } from "@/lib/course-display";
 import {
   getAccessibleCourses,
-  getPeriodLabel,
-  getSessionEventLabels,
   getStaffNameByUserId,
   type SessionRow,
 } from "@/lib/school-data";
@@ -52,33 +50,26 @@ export default async function CoursePage({ params }: CoursePageProps) {
   const sessionRows = (sessions ?? []) as SessionRow[];
   const teacherNames = new Map<string, string>();
 
-  for (const teacherId of [...new Set(sessionRows.map((session) => session.teacher_id))]) {
+  for (const teacherId of [
+    ...new Set(sessionRows.map((session) => session.teacher_id)),
+  ]) {
     teacherNames.set(teacherId, await getStaffNameByUserId(supabase, teacherId));
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link
-          href="/courses"
-          className="text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          Back to courses
-        </Link>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          {course.code}
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          {course.name ?? "Course name unavailable"}
-        </p>
-      </div>
+      <PageHeader
+        backHref="/courses"
+        backLabel="Back to courses"
+        eyebrow="Course"
+        title={course.code}
+        description={course.name ?? "Course name unavailable"}
+      />
 
       <Card>
         <CardHeader>
           <CardTitle>Course details</CardTitle>
-          <CardDescription>
-            {getCourseLabel(course)}
-          </CardDescription>
+          <CardDescription>{getCourseLabel(course)}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <InfoBlock label="Course code" value={course.code} />
@@ -96,37 +87,19 @@ export default async function CoursePage({ params }: CoursePageProps) {
         <CardContent className="space-y-3">
           {sessionRows.length > 0 ? (
             sessionRows.map((session) => (
-              <Link
+              <SessionCard
                 key={session.id}
-                href={`/sessions/${session.id}`}
-                className="block rounded-md border bg-background p-4 hover:bg-muted"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="font-medium">
-                      {session.date ?? "No date"} ·{" "}
-                      {getPeriodLabel(session.isTP, Number(session.period))}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {session.isTP ? "TP" : "course"} · Teacher:{" "}
-                      {teacherNames.get(session.teacher_id) ?? "Unavailable"} · Class:{" "}
-                      {session.class}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {getSessionEventLabels(session.event).map((label) => (
-                      <Badge key={label} variant="secondary">
-                        {label}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </Link>
+                session={session}
+                teacherName={
+                  teacherNames.get(session.teacher_id) ?? "Unavailable"
+                }
+              />
             ))
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No sessions found for this course.
-            </p>
+            <EmptyState
+              title="No sessions found"
+              description="Roll call and presentation events for this course will appear here."
+            />
           )}
         </CardContent>
       </Card>
@@ -136,20 +109,16 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
 function UnavailableCourse() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Course not found or unavailable.</CardTitle>
-        <CardDescription>
-          The course may not exist, or your account may not have access to it.
-        </CardDescription>
-      </CardHeader>
-    </Card>
+    <EmptyState
+      title="Course not found or unavailable."
+      description="The course may not exist, or your account may not have access to it."
+    />
   );
 }
 
 function InfoBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border bg-background p-4">
+    <div className="rounded-2xl border bg-background p-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
