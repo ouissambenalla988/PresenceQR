@@ -8,7 +8,7 @@ import { useState } from "react";
 import {
   IconBook2,
   IconChevronRight,
-  IconCircleHelp,
+  IconHelpCircle,
   IconDashboard,
   IconLogout,
   IconPresentation,
@@ -214,7 +214,7 @@ function SidebarContent({
         )}
       </div>
 
-      <div className="mt-8 rounded-2xl border bg-gradient-to-br from-background to-muted/40 p-3 shadow-sm md:mt-auto">
+      <div className="mt-8 rounded-2xl border bg-linear-to-br from-background to-muted/40 p-3 shadow-sm md:mt-auto">
         <button
           type="button"
           onClick={() => setMenuOpen(!menuOpen)}
@@ -241,7 +241,7 @@ function SidebarContent({
               <IconSettings className="size-4" />
               Settings
             </Link>
-            <MenuItem icon={<IconCircleHelp className="size-4" />} label="Help and support" />
+            <MenuItem icon={<IconHelpCircle className="size-4" />} label="Help and support" />
             <button
               type="button"
               onClick={signOut}
