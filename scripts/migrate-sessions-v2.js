@@ -11,8 +11,11 @@
 
 const { Client } = require("pg");
 
-const SERVICE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkcHVrZnVibXpqcnZ3ZWRjaHhvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQ2MDcyOCwiZXhwIjoyMDk1MDM2NzI4fQ.Jd7RCYOqLJ-LbBugTqU_1A-RG502e3IyOG-OT6S3kMM";
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SERVICE_KEY) {
+  console.error("❌  SUPABASE_SERVICE_ROLE_KEY env var is required. Set it in your .env file.");
+  process.exit(1);
+}
 
 // Try DB_PASSWORD env var first, then fallback to service key (session pooler)
 const DB_PASSWORD = process.env.DB_PASSWORD || SERVICE_KEY;
