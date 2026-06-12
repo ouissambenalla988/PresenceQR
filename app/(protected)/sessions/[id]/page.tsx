@@ -9,18 +9,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  SessionLiveView,
+  type RosterRow,
+  type SessionMeta,
+} from "@/components/session-live-view";
+import {
   getAccessibleCourses,
+  getConfirmedStaff,
   getPeriodLabel,
   getSessionEventLabels,
   getStaffNameByUserId,
   type SessionRow,
 } from "@/lib/school-data";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 type SessionPageProps = {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }>;
 };
 
 export default async function SessionPage({ params }: SessionPageProps) {
@@ -49,14 +54,64 @@ export default async function SessionPage({ params }: SessionPageProps) {
     (item) => item.code === sessionData.courses_id,
   );
 
+  const courseCode = course?.code ?? sessionData.courses_id;
+  const courseName = course?.name ?? null;
+  const teacherName = await getStaffNameByUserId(supabase, sessionData.teacher_id);
+  const periodLabel = getPeriodLabel(sessionData.isTP, Number(sessionData.period));
+
+  // Teacher (session owner or confirmed staff) → live attendance view
+  const isOwner = sessionData.teacher_id === user.id;
+  const staff = isOwner ? null : await getConfirmedStaff(supabase, user.id);
+  const isTeacher = isOwner || Boolean(staff);
+
+  if (isTeacher) {
+    // Initial roster via service client (RPC bypasses student-profile RLS)
+    const service = createServiceClient();
+    const { data: rosterData } = await service.rpc("get_session_roster", {
+      p_session_id: id,
+    });
+
+    const deepLinkBase =
+      process.env.QR_DEEPLINK_BASE ??
+      process.env.DEMO_QR_DEEPLINK_BASE ??
+      "presenceqr://scan?code=";
+
+    // Fixed QR hash from env — does not rotate per session
+    const qrToken = process.env.QR_HASH ?? null;
+
+    const meta: SessionMeta = {
+      id: sessionData.id,
+      courseCode,
+      courseName,
+      section: sessionData.class,
+      date: sessionData.date ?? "—",
+      periodLabel,
+      teacherName,
+      room: sessionData.room ?? null,
+      isTP: sessionData.isTP,
+      eventLabels: getSessionEventLabels(sessionData.event),
+      qrToken,
+      deepLinkBase,
+    };
+
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          backHref="/dashboard"
+          backLabel="Retour au tableau de bord"
+          eyebrow="Séance en direct"
+          title={courseName ?? courseCode}
+          description={`${courseCode} • ${sessionData.class} • ${sessionData.date}`}
+        />
+        <SessionLiveView meta={meta} initialRoster={(rosterData ?? []) as RosterRow[]} />
+      </div>
+    );
+  }
+
+  // Student → read-only details
   if (!course) {
     return <UnavailableSession />;
   }
-
-  const teacherName = await getStaffNameByUserId(
-    supabase,
-    sessionData.teacher_id,
-  );
 
   return (
     <div className="space-y-6">
@@ -77,10 +132,7 @@ export default async function SessionPage({ params }: SessionPageProps) {
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
           <InfoBlock label="Date" value={sessionData.date ?? "Unavailable"} />
-          <InfoBlock
-            label="Period"
-            value={getPeriodLabel(sessionData.isTP, Number(sessionData.period))}
-          />
+          <InfoBlock label="Period" value={periodLabel} />
           <InfoBlock label="Type" value={sessionData.isTP ? "TP" : "Course"} />
           <InfoBlock label="Teacher" value={teacherName} />
           <InfoBlock label="Class / Section" value={sessionData.class} />

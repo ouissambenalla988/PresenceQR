@@ -264,99 +264,138 @@ function TeacherDashboard({
   const courseOptions = courses
     .map((course) => {
       const code = getCourseCode(course);
-      return {
-        code,
-        name: getCourseName(course),
-      };
+      return { code, name: getCourseName(course) };
     })
     .filter((course) => course.code);
+
+  const activeSessions = recentSessions.filter((s) => s.status === "active").length;
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todaySessions = recentSessions.filter((s) => s.date === todayStr).length;
+
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Dashboard"
-        title={`Welcome, ${staff.name ?? "Teacher"}`}
-        description="Launch sessions, review courses, and monitor classroom activity."
-        actions={<Badge variant="secondary">Teacher</Badge>}
+        eyebrow="Tableau de bord"
+        title={`Bienvenue, ${staff.name ?? "Enseignant"}`}
+        description="Lancez des séances, consultez les cours et suivez l'activité en classe."
+        actions={
+          <Badge className="border-0 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+            Enseignant
+          </Badge>
+        }
       />
 
-      <Card
-        size="sm"
-        className="bg-[linear-gradient(135deg,oklch(0.99_0.01_105),oklch(0.96_0.04_88))]"
-      >
-        <CardHeader>
-          <CardTitle>Teacher actions</CardTitle>
-          <CardDescription>
-            Start classroom sessions for roll call or presentations.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <TeacherSessionActions courses={courseOptions} />
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      {/* Stats bar */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Cours disponibles" value={courseOptions.length} />
+        <StatCard label="Séances récentes" value={recentSessions.length} />
+        <StatCard label="Actives maintenant" value={activeSessions} accent="emerald" />
+        <StatCard label="Séances aujourd'hui" value={todaySessions} accent="blue" />
+      </div>
+
+      {/* Quick actions */}
+      <Card size="sm" className="border-2 border-dashed border-foreground/10 bg-gradient-to-br from-background to-muted/30">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <div className="flex size-8 items-center justify-center rounded-xl bg-foreground text-background">
               <IconSparkles className="size-4" />
-              Actions create live session records.
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card size="sm">
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4">
             <div>
-              <CardTitle>Courses</CardTitle>
-              <CardDescription>
-                A quick preview of available courses.
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary">{courseOptions.length} courses</Badge>
-              <Link href="/courses" className="inline-flex items-center gap-1 text-sm font-medium underline-offset-4 hover:underline">
-                View all courses
-                <IconArrowRight className="size-4" />
-              </Link>
+              <CardTitle className="text-base">Démarrer une séance</CardTitle>
+              <CardDescription>Appel ou présentation — un QR code est généré instantanément.</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {courseOptions.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {courseOptions.slice(0, 5).map((course) => (
-                <CourseCard key={course.code} course={course} />
-              ))}
-            </div>
-          ) : (
-            <EmptyState title="No courses found" description="Courses from the courses table will appear here when available." />
-          )}
+          <TeacherSessionActions courses={courseOptions} />
         </CardContent>
       </Card>
 
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>Recent sessions</CardTitle>
-          <CardDescription>
-            Session activity will appear here after roll call or presentation sessions are created.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {recentSessions.length > 0 ? (
-            <div className="space-y-3">
-              {recentSessions.map((session) => (
-                <SessionCard
-                  key={session.id}
-                  session={session}
-                  teacherName={teacherNames.get(session.teacher_id) ?? "Unavailable"}
-                />
-              ))}
+      {/* Courses + recent sessions in 2-col on wide screens */}
+      <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
+        <Card size="sm">
+          <CardHeader>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle>Mes cours</CardTitle>
+                <CardDescription>Aperçu rapide des cours disponibles.</CardDescription>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge variant="secondary">{courseOptions.length}</Badge>
+                <Link
+                  href="/courses"
+                  className="inline-flex items-center gap-1 text-sm font-medium underline-offset-4 hover:underline"
+                >
+                  Voir tout
+                  <IconArrowRight className="size-4" />
+                </Link>
+              </div>
             </div>
-          ) : (
-            <EmptyState
-              title="No recent sessions yet"
-              description="Start a roll call or presentation session to populate this activity feed."
-            />
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            {courseOptions.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {courseOptions.slice(0, 6).map((course) => (
+                  <CourseCard key={course.code} course={course} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title="Aucun cours trouvé"
+                description="Les cours de la table courses apparaîtront ici."
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Séances récentes</CardTitle>
+            <CardDescription>Activité après création de séances d'appel ou de présentation.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {recentSessions.length > 0 ? (
+              <div className="space-y-3">
+                {recentSessions.map((session) => (
+                  <SessionCard
+                    key={session.id}
+                    session={session}
+                    teacherName={teacherNames.get(session.teacher_id) ?? "Indisponible"}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title="Aucune séance récente"
+                description="Démarrez une séance pour alimenter ce journal d'activité."
+              />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent?: "emerald" | "blue";
+}) {
+  const valueClass =
+    accent === "emerald"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : accent === "blue"
+        ? "text-blue-600 dark:text-blue-400"
+        : "text-foreground";
+  return (
+    <div className="rounded-2xl border bg-background p-4 shadow-sm">
+      <p className={`text-2xl font-bold tabular-nums ${valueClass}`}>{value}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{label}</p>
     </div>
   );
 }

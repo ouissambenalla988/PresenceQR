@@ -20,12 +20,18 @@ export type StudentCourseRow = {
 export type SessionRow = {
   id: string;
   date: string | null;
+  session_date: string | null;   // generated = date (Flutter compat)
+  session_time: string | null;   // generated from period+isTP (Flutter compat)
   teacher_id: string;
   courses_id: string;
   isTP: boolean;
   period: number;
   class: string;
+  room: string | null;
   event: "roll" | "presentation" | "both" | string;
+  status: "active" | "finished" | "cancelled";
+  qr_token: string | null;
+  qr_expires_at: string | null;
 };
 
 const staffUserIdColumns = ["user_id", "id", "teacher_id", "auth_user_id"];

@@ -50,41 +50,38 @@ export function AuthForm({ mode }: AuthFormProps) {
     const password = String(formData.get("password"));
     const supabase = createClient();
 
-    const result = isSignIn
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-            data: {
-              role: "student",
-            },
-          },
-        });
-
-    if (result.error) {
-      setStatus("error");
-      setStepMessage(null);
-      setErrorMessage(getFriendlyAuthError(result.error.message, isSignIn));
-      return;
-    }
-
     let redirectTo = searchParams.get("redirectedFrom") ?? "/dashboard";
 
     if (isSignIn) {
-      setStepMessage("Redirecting...");
-    } else {
-      setStepMessage("Connecting to SchoolApp...");
-      const connection = await connectSchoolApp(email, password);
-      if (!connection.success) {
+      const result = await supabase.auth.signInWithPassword({ email, password });
+      if (result.error) {
         setStatus("error");
         setStepMessage(null);
-        setErrorMessage(connection.message);
+        setErrorMessage(getFriendlyAuthError(result.error.message));
         return;
-      } else {
-        redirectTo = "/dashboard?uncompleted=true";
       }
+      setStepMessage("Redirecting...");
+    } else {
+      // Sign-up: verify SchoolApp + create Supabase account server-side (no rate limit)
+      setStepMessage("Verifying your SchoolApp account...");
+      const signup = await serverSideSignup(email, password);
+      if (!signup.success) {
+        setStatus("error");
+        setStepMessage(null);
+        setErrorMessage(signup.message);
+        return;
+      }
+
+      // Establish browser session by signing in after server created the account
+      setStepMessage("Setting up your session...");
+      const result = await supabase.auth.signInWithPassword({ email, password });
+      if (result.error) {
+        setStatus("error");
+        setStepMessage(null);
+        setErrorMessage(getFriendlyAuthError(result.error.message));
+        return;
+      }
+      redirectTo = "/dashboard";
     }
 
     setStepMessage("Redirecting...");
@@ -93,37 +90,20 @@ export function AuthForm({ mode }: AuthFormProps) {
     router.refresh();
   }
 
-  async function connectSchoolApp(email: string, password: string) {
+  async function serverSideSignup(email: string, password: string) {
     try {
-      setStepMessage("Checking your school account...");
-      const response = await fetch("/api/schoolapp-connection", {
+      const response = await fetch("/api/auth/student-signup", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-
-      const data = (await response.json()) as {
-        success?: boolean;
-        message?: string;
-      };
-
+      const data = (await response.json()) as { success?: boolean; message?: string };
       if (!response.ok || !data.success) {
-        return {
-          success: false,
-          message: getFriendlyPlatformError(data.message),
-        };
+        return { success: false, message: data.message ?? "Sign-up failed. Please try again." };
       }
-
-      setStepMessage("Fetching your student profile...");
-      setStepMessage("Saving your profile...");
-      return { success: true, message: "SchoolApp connected." };
+      return { success: true, message: "" };
     } catch {
-      return {
-        success: false,
-        message: "Network/server error. Please try again.",
-      };
+      return { success: false, message: "Network error. Please try again." };
     }
   }
 
@@ -207,36 +187,16 @@ export function AuthForm({ mode }: AuthFormProps) {
   );
 }
 
-function getFriendlyAuthError(message: string, isSignIn: boolean) {
-  const lowerMessage = message.toLowerCase();
-
-  if (lowerMessage.includes("invalid")) {
-    return isSignIn
-      ? "Invalid Supabase credentials. Check your email and password."
-      : "This account could not be created with those credentials.";
+function getFriendlyAuthError(message: string) {
+  const m = message.toLowerCase();
+  if (m.includes("rate limit") || m.includes("too many")) {
+    return "Too many attempts. Please wait a few minutes and try again.";
   }
-
-  if (lowerMessage.includes("already")) {
-    return "An account already exists for this email. Try signing in instead.";
+  if (m.includes("invalid login") || m.includes("invalid credentials")) {
+    return "Invalid email or password.";
   }
-
-  return "Supabase authentication failed. Please check your details and try again.";
-}
-
-function getFriendlyPlatformError(message?: string) {
-  if (!message) {
-    return "School platform login failed. Please check your SchoolApp credentials.";
+  if (m.includes("not confirmed") || m.includes("email confirmation")) {
+    return "Email not confirmed. Please check your inbox.";
   }
-
-  const lowerMessage = message.toLowerCase();
-
-  if (lowerMessage.includes("invalid") || lowerMessage.includes("authentication")) {
-    return "School platform login failed. Please check your SchoolApp email and password.";
-  }
-
-  if (lowerMessage.includes("profile")) {
-    return "Profile could not be created from your SchoolApp account.";
-  }
-
-  return message;
+  return `Sign-in failed: ${message}`;
 }
